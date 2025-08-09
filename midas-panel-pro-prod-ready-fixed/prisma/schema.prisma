@@ -1,0 +1,73 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String?
+  name          String?
+  role          Role     @default(USER)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  subscriptions Subscription[]
+  orders        Order[]
+
+  @@index([email])
+}
+
+model Plan {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  priceCents  Int
+  interval    String   // "month" | "year"
+  stripePriceId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions Subscription[]
+  orders        Order[]
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+  plan          Plan     @relation(fields: [planId], references: [id])
+  planId        String
+  status        String   // "active" | "canceled" | "past_due"
+  startedAt     DateTime @default(now())
+  currentPeriodEnd DateTime?
+  stripeSubId   String?  @unique
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  user        User     @relation(fields: [userId], references: [id])
+  userId      String
+  plan        Plan?    @relation(fields: [planId], references: [id])
+  planId      String?
+  amountCents Int
+  currency    String   @default("usd")
+  status      String   // "paid" | "unpaid" | "refunded"
+  stripePaymentIntentId String? @unique
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([status])
+}
